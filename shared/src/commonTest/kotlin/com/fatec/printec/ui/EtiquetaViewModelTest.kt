@@ -31,13 +31,14 @@ private class StoreFalsa(
 
 private class TransporteFalso(
     private val falhasAntesDeAceitar: Int = 0,
+    private val erro: ErroImpressao = ErroImpressao.FalhaAoConectar("dormindo"),
 ) : PrinterTransport {
     var tentativas = 0
     var bytesRecebidos: ByteArray? = null
     override suspend fun listarDestinos() = listOf(PrinterTarget("00:11:22", "KPrinter"))
     override suspend fun imprimir(destino: PrinterTarget, bytes: ByteArray) {
         tentativas++
-        if (tentativas <= falhasAntesDeAceitar) throw ErroImpressao.FalhaAoConectar("dormindo")
+        if (tentativas <= falhasAntesDeAceitar) throw erro
         bytesRecebidos = bytes
     }
 }
@@ -91,6 +92,33 @@ class EtiquetaViewModelTest {
         val estado = vm.estado.value
         assertIs<EstadoImpressao.Falha>(estado)
         assertIs<ErroImpressao.NenhumaImpressoraSelecionada>(estado.erro)
+    }
+
+    @Test
+    fun `erro nao repetivel falha na primeira tentativa sem gastar a segunda`() = runTest {
+        val transporte = TransporteFalso(
+            falhasAntesDeAceitar = 5,
+            erro = ErroImpressao.PermissaoNegada,
+        )
+        val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
+        vm.atualizarDocumento(documento)
+        vm.imprimir()
+        assertEquals(1, transporte.tentativas)   // NAO gastou a segunda
+        val estado = vm.estado.value
+        assertIs<EstadoImpressao.Falha>(estado)
+        assertIs<ErroImpressao.PermissaoNegada>(estado.erro)
+    }
+
+    @Test
+    fun `falha ao renderizar vira Falha em vez de escapar`() = runTest {
+        val vm = EtiquetaViewModel(StoreFalsa(), TransporteFalso()) { _, _ ->
+            throw IllegalStateException("documento invalido")
+        }
+        vm.atualizarDocumento(documento)
+        vm.imprimir()
+        val estado = vm.estado.value
+        assertIs<EstadoImpressao.Falha>(estado)
+        assertIs<ErroImpressao.FalhaAoPreparar>(estado.erro)
     }
 
     @Test

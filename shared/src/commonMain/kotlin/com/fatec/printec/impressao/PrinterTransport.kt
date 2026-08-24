@@ -17,6 +17,10 @@ sealed class ErroImpressao(mensagem: String) : Exception(mensagem) {
     data class FalhaAoEscrever(val causa: String) : ErroImpressao(
         "A conexão caiu durante a impressão",
     )
+    /** Falha ANTES de falar com a impressora: renderizar, salvar rascunho. */
+    data class FalhaAoPreparar(val causa: String) : ErroImpressao(
+        "Não foi possível preparar a etiqueta",
+    )
 }
 
 interface PrinterTransport {
