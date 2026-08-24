@@ -244,15 +244,17 @@ Adicione a dependência do runner ao source set de dispositivo, em `shared/build
         }
 ```
 
-Descubra o nome exato da tarefa Gradle (varia com a versão do AGP KMP):
+**Não há dispositivo nem emulador disponíveis nesta máquina** (`adb devices` vazio, nenhum AVD criado). O arquivo de teste acima é entregável e fica no repositório, mas a execução em aparelho entra no checklist de hardware da Tarefa 11.
+
+No lugar dela, rode a verificação que **não** precisa de dispositivo e retira a maior parte do mesmo risco — o D8 dexando o jar do escpos-coffee:
 
 ```bash
-./gradlew :shared:tasks --all | grep -i -E "device|connected"
+./gradlew :androidApp:assembleDebug
 ```
 
-Rode a tarefa listada, com um emulador **API 28** ligado (a versão mais antiga suportada é a que corre mais risco). Esperado: PASS.
+Esperado: BUILD SUCCESSFUL. Isto prova que as classes da biblioteca são convertidas para dex sem referências irresolvíveis. Se as regras do Step 7 não bastarem, o erro aparece aqui, citando `java.awt` ou `javax.print`.
 
-**Se falhar com `NoClassDefFoundError`**, o risco nº 3 se materializou: pare e reporte antes de seguir para a Tarefa 2. A alternativa é abandonar a biblioteca no `androidMain` e emitir os comandos à mão — decisão que exige o usuário.
+**Se o dex falhar mencionando classes ausentes**, o risco nº 3 se materializou: reporte antes de seguir para a Tarefa 2. A alternativa é não usar a biblioteca no `androidMain` e emitir `GS ( k` à mão — decisão que exige o usuário.
 
 - [ ] **Step 9: Commit**
 
@@ -954,7 +956,7 @@ CREATE TABLE bloco (
 CREATE INDEX idx_bloco_etiqueta ON bloco(etiqueta_id, ordem);
 
 CREATE TABLE configuracao (
-  id              INTEGER PRIMARY KEY,
+  id              INTEGER PRIMARY KEY CHECK (id = 0),
   impressora_id   TEXT,
   impressora_nome TEXT,
   perfil_midia    TEXT    NOT NULL DEFAULT 'CONTINUO',
