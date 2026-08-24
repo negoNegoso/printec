@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# escpos-coffee traz classes de desktop que este app nunca carrega
+-dontwarn java.awt.**
+-dontwarn javax.print.**
+-dontwarn com.github.anastaciocintra.escpos.image.CoffeeImageImpl
+-dontwarn com.github.anastaciocintra.output.PrinterOutputStream
