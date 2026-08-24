@@ -65,7 +65,6 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.sqldelight.androidDriver)
-            implementation(libs.androidx.core.ktx)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

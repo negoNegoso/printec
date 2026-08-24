@@ -5,6 +5,7 @@ android-minSdk = "24"
 android-targetSdk = "36"
 androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
+# 1.19.0 exige AGP 9.1+/compileSdk 37; este projeto usa AGP 8.13.1/compileSdk 36.
 androidx-core = "1.15.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.11.0-beta01"

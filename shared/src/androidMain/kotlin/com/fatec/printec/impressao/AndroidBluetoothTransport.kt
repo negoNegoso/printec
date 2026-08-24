@@ -6,7 +6,6 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -65,8 +64,11 @@ class AndroidBluetoothTransport(private val context: Context) : PrinterTransport
 
     private fun exigirPermissao() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return  // API 28: permissao de instalacao
-        val concedida = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.BLUETOOTH_CONNECT,
+        // Context.checkSelfPermission existe desde a API 23 e este ramo so roda
+        // na API 31+, entao nao ha motivo para depender do androidx-core so por
+        // causa do ContextCompat.
+        val concedida = context.checkSelfPermission(
+            Manifest.permission.BLUETOOTH_CONNECT,
         ) == PackageManager.PERMISSION_GRANTED
         if (!concedida) throw ErroImpressao.PermissaoNegada
     }
