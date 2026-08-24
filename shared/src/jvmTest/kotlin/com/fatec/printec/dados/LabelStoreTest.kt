@@ -1,5 +1,6 @@
 package com.fatec.printec.dados
 
+import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.fatec.printec.db.PrintecDatabase
 import com.fatec.printec.etiqueta.Alinhamento
@@ -58,6 +59,22 @@ class LabelStoreTest {
         store.salvarRascunho(exemplo.copy(copias = 9))
         assertEquals(9, store.carregarRascunho()?.copias)
         assertTrue(store.etiquetasSalvas().first().isEmpty())
+    }
+
+    @Test
+    fun `salvar rascunho duas vezes mantem exatamente um rascunho, o mais recente`() = runTest {
+        store.salvarRascunho(exemplo)
+        store.salvarRascunho(exemplo.copy(copias = 9))
+
+        val quantidadeDeRascunhos = driver.executeQuery(
+            identifier = null,
+            sql = "SELECT count(*) FROM etiqueta WHERE eh_rascunho = 1",
+            mapper = { cursor -> QueryResult.Value(if (cursor.next().value) cursor.getLong(0)!! else 0L) },
+            parameters = 0,
+        ).value
+
+        assertEquals(1L, quantidadeDeRascunhos)
+        assertEquals(9, store.carregarRascunho()?.copias)
     }
 
     @Test
