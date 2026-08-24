@@ -32,6 +32,26 @@ kotlin {
     }
     
     sourceSets {
+        val jvmCommonMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.escpos.coffee)
+            }
+        }
+        val jvmCommonTest by creating {
+            dependsOn(commonTest.get())
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
+        jvmMain.get().dependsOn(jvmCommonMain)
+        androidMain.get().dependsOn(jvmCommonMain)
+        jvmTest.get().dependsOn(jvmCommonTest)
+        getByName("androidHostTest").dependsOn(jvmCommonTest)
+        getByName("androidDeviceTest").dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.androidx.testExt.junit)
+        }
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
