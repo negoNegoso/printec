@@ -1,0 +1,69 @@
+CREATE TABLE etiqueta (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome          TEXT,
+  eh_rascunho   INTEGER NOT NULL DEFAULT 0,
+  copias        INTEGER NOT NULL DEFAULT 1,
+  criada_em     INTEGER NOT NULL,
+  atualizada_em INTEGER NOT NULL
+);
+
+CREATE TABLE bloco (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  etiqueta_id INTEGER NOT NULL REFERENCES etiqueta(id) ON DELETE CASCADE,
+  ordem       INTEGER NOT NULL,
+  tipo        TEXT    NOT NULL,
+  conteudo    TEXT,
+  escala      INTEGER NOT NULL DEFAULT 1,
+  alinhamento TEXT    NOT NULL DEFAULT 'ESQUERDA',
+  negrito     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_bloco_etiqueta ON bloco(etiqueta_id, ordem);
+
+CREATE TABLE configuracao (
+  id              INTEGER PRIMARY KEY CHECK (id = 0),
+  impressora_id   TEXT,
+  impressora_nome TEXT,
+  perfil_midia    TEXT    NOT NULL DEFAULT 'CONTINUO',
+  avanco_final_mm INTEGER NOT NULL DEFAULT 3
+);
+
+garantirConfiguracao:
+INSERT OR IGNORE INTO configuracao (id) VALUES (0);
+
+lerConfiguracao:
+SELECT * FROM configuracao WHERE id = 0;
+
+atualizarConfiguracao:
+UPDATE configuracao
+SET impressora_id = ?, impressora_nome = ?, perfil_midia = ?, avanco_final_mm = ?
+WHERE id = 0;
+
+inserirEtiqueta:
+INSERT INTO etiqueta (nome, eh_rascunho, copias, criada_em, atualizada_em)
+VALUES (?, ?, ?, ?, ?);
+
+ultimoId:
+SELECT last_insert_rowid();
+
+inserirBloco:
+INSERT INTO bloco (etiqueta_id, ordem, tipo, conteudo, escala, alinhamento, negrito)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+listarEtiquetas:
+SELECT * FROM etiqueta WHERE eh_rascunho = 0 ORDER BY atualizada_em DESC;
+
+lerRascunho:
+SELECT * FROM etiqueta WHERE eh_rascunho = 1 LIMIT 1;
+
+blocosDe:
+SELECT * FROM bloco WHERE etiqueta_id = ? ORDER BY ordem;
+
+excluirEtiqueta:
+DELETE FROM etiqueta WHERE id = ?;
+
+excluirRascunhos:
+DELETE FROM etiqueta WHERE eh_rascunho = 1;
+
+contarBlocos:
+SELECT count(*) FROM bloco;
