@@ -2479,10 +2479,16 @@ fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore) {
                     modifier = Modifier.width(120.dp),
                 )
 
+                // Sem esta guarda, um duplo toque dispara duas impressoes
+                // concorrentes e saem duas etiquetas.
+                val imprimindo = estado is EstadoImpressao.Renderizando ||
+                    estado is EstadoImpressao.Conectando ||
+                    estado is EstadoImpressao.Enviando
                 Button(
                     onClick = { escopo.launch { vm.imprimir() } },
+                    enabled = !imprimindo,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("IMPRIMIR") }
+                ) { Text(if (imprimindo) "IMPRIMINDO…" else "IMPRIMIR") }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
