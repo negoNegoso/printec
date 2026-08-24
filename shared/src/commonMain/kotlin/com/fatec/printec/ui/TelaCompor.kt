@@ -29,7 +29,7 @@ import com.fatec.printec.dados.LabelStore
 import kotlinx.coroutines.launch
 
 @Composable
-fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore) {
+fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: () -> Unit) {
     var campos by remember { mutableStateOf(CamposDoFormulario()) }
     var nomeParaSalvar by remember { mutableStateOf("") }
     val escopo = rememberCoroutineScope()
@@ -95,7 +95,7 @@ fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore) {
                     estado is EstadoImpressao.Conectando ||
                     estado is EstadoImpressao.Enviando
                 Button(
-                    onClick = { escopo.launch { vm.imprimir() } },
+                    onClick = imprimir,
                     enabled = !imprimindo,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(if (imprimindo) "IMPRIMINDO…" else "IMPRIMIR") }

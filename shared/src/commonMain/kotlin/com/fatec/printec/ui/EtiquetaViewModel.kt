@@ -35,6 +35,19 @@ class EtiquetaViewModel(
         _documento.value = novo
     }
 
+    /**
+     * Chamado ao trocar de tela. Sem isto, o estado e global ao ViewModel e a
+     * mensagem de uma reimpressao feita na aba "Salvas" reaparece na tela de
+     * composicao, atribuida a um documento que nao tem nada a ver com ela.
+     * So limpa estados terminais — nunca interrompe uma impressao em andamento.
+     */
+    fun limparEstadoSeConcluido() {
+        val atual = _estado.value
+        if (atual is EstadoImpressao.Sucesso || atual is EstadoImpressao.Falha) {
+            _estado.value = EstadoImpressao.Ocioso
+        }
+    }
+
     suspend fun imprimir() {
         val doc = _documento.value
         val config = store.configuracoes().first()
