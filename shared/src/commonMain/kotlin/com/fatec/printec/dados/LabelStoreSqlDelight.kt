@@ -61,8 +61,13 @@ class LabelStoreSqlDelight(driver: SqlDriver) : LabelStore {
     }
 
     override suspend fun salvarRascunho(documento: LabelDocument) {
-        q.excluirRascunhos()
-        gravar(nome = null, rascunho = true, documento = documento)
+        // Uma transacao SO, cobrindo as duas operacoes: entre apagar o rascunho
+        // antigo e gravar o novo nao pode existir um instante com zero rascunhos.
+        // Sem isso, um crash no meio perde o que o usuario digitou.
+        q.transaction {
+            q.excluirRascunhos()
+            gravar(nome = null, rascunho = true, documento = documento)
+        }
     }
 
     override suspend fun carregarRascunho(): LabelDocument? {
