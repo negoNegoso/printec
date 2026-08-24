@@ -41,11 +41,14 @@ class EscPosRendererTest {
 
     @Test
     fun `texto longo e quebrado em duas linhas com um LF cada`() {
-        val doc = LabelDocument(listOf(Bloco.Linha("a".repeat(33))))
+        // 'z' (0x7A) de proposito: 'a' seria 0x61, que e o SEGUNDO byte do
+        // comando ESC a (alinhamento). Contar 0x61 no array inteiro somaria o
+        // byte do comando as letras do texto e daria 34 em vez de 33.
+        val doc = LabelDocument(listOf(Bloco.Linha("z".repeat(33))))
         val bytes = EscPosRenderer.renderizar(doc, avancoFinalMm = 0)
         assertEquals(2, bytes.count { it == 0x0A.toByte() })
         // 32 letras na primeira linha, 1 na segunda
-        assertEquals(33, bytes.count { it == 'a'.code.toByte() })
+        assertEquals(33, bytes.count { it == 'z'.code.toByte() })
     }
 
     @Test
