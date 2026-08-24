@@ -5,6 +5,7 @@ import com.fatec.printec.etiqueta.LabelDocument
 import com.fatec.printec.impressao.ErroImpressao
 import com.fatec.printec.impressao.PrinterTarget
 import com.fatec.printec.impressao.PrinterTransport
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,11 +45,25 @@ class EtiquetaViewModel(
             return
         }
 
-        // O rascunho e salvo na impressao, nao a cada tecla.
-        store.salvarRascunho(doc)
-
         _estado.value = EstadoImpressao.Renderizando
-        val umaCopia = renderizar(doc, config.avancoFinalMm)
+        val umaCopia = try {
+            // O rascunho e salvo na impressao, nao a cada tecla.
+            store.salvarRascunho(doc)
+            renderizar(doc, config.avancoFinalMm)
+        } catch (e: CancellationException) {
+            throw e   // cancelamento nao e erro de impressao
+        } catch (e: ErroImpressao) {
+            _estado.value = EstadoImpressao.Falha(e)
+            return
+        } catch (e: Exception) {
+            // Nada pode escapar daqui sem virar estado. Uma excecao crua
+            // deixaria a UI presa em "Renderizando" para sempre, sem caminho
+            // para Falha e sem o usuario poder tentar de novo.
+            _estado.value = EstadoImpressao.Falha(
+                ErroImpressao.FalhaAoPreparar(e.message ?: e::class.simpleName.orEmpty()),
+            )
+            return
+        }
         val payload = ByteArray(umaCopia.size * doc.copias.coerceAtLeast(1))
         repeat(doc.copias.coerceAtLeast(1)) { i ->
             umaCopia.copyInto(payload, destinationOffset = i * umaCopia.size)
