@@ -9,8 +9,13 @@ class ResultadoCodificacao(val bytes: ByteArray, val substituidos: Int)
  * Android é reduzido e pode não incluir a PC860. Uma tabela em Kotlin puro se
  * comporta igual nas duas plataformas e é testável sem dispositivo.
  *
- * Mapeia 0x00..0x7F (ASCII) e 0x80..0xAF (acentuadas e pontuação). O restante
- * da página é box-drawing e grego, sem uso em etiquetas.
+ * Mapeia o ASCII imprimível (0x20..0x7E) e 0x80..0xAF (acentuadas e pontuação).
+ * O restante da página é box-drawing e grego, sem uso em etiquetas.
+ *
+ * Caracteres de controle (\n, \t, ESC…) NÃO passam: viram `?` e são contados.
+ * É deliberado — um 0x0A cru criaria uma quebra de linha que o preview não
+ * mostra, quebrando o WYSIWYG, e os bytes de controle carregam significado
+ * em ESC/POS. Melhor o usuário ver o aviso de substituição.
  */
 object Pc860 {
 

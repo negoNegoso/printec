@@ -50,4 +50,12 @@ class Pc860Test {
         assertEquals(0, r.bytes.size)
         assertEquals(0, r.substituidos)
     }
+
+    @Test
+    fun `caracteres de controle sao substituidos`() {
+        val r = Pc860.codificar("a\nb")
+        // a=0x61, \n é controle (vira ?), b=0x62
+        assertEquals(listOf<Byte>(0x61, '?'.code.toByte(), 0x62), r.bytes.toList())
+        assertEquals(1, r.substituidos)
+    }
 }
