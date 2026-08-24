@@ -80,6 +80,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutinesTest)
         }
         jvmMain.dependencies {
             implementation(libs.sqldelight.sqliteDriver)
