@@ -1470,6 +1470,10 @@ sealed class ErroImpressao(mensagem: String) : Exception(mensagem) {
     data class FalhaAoEscrever(val causa: String) : ErroImpressao(
         "A conexão caiu durante a impressão",
     )
+    /** Falha ANTES de falar com a impressora: renderizar, salvar rascunho. */
+    data class FalhaAoPreparar(val causa: String) : ErroImpressao(
+        "Não foi possível preparar a etiqueta",
+    )
 }
 
 interface PrinterTransport {
@@ -1766,13 +1770,14 @@ private class StoreFalsa(
 
 private class TransporteFalso(
     private val falhasAntesDeAceitar: Int = 0,
+    private val erro: ErroImpressao = ErroImpressao.FalhaAoConectar("dormindo"),
 ) : PrinterTransport {
     var tentativas = 0
     var bytesRecebidos: ByteArray? = null
     override suspend fun listarDestinos() = listOf(PrinterTarget("00:11:22", "KPrinter"))
     override suspend fun imprimir(destino: PrinterTarget, bytes: ByteArray) {
         tentativas++
-        if (tentativas <= falhasAntesDeAceitar) throw ErroImpressao.FalhaAoConectar("dormindo")
+        if (tentativas <= falhasAntesDeAceitar) throw erro
         bytesRecebidos = bytes
     }
 }
@@ -1829,6 +1834,33 @@ class EtiquetaViewModelTest {
     }
 
     @Test
+    fun `erro nao repetivel falha na primeira tentativa sem gastar a segunda`() = runTest {
+        val transporte = TransporteFalso(
+            falhasAntesDeAceitar = 5,
+            erro = ErroImpressao.PermissaoNegada,
+        )
+        val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
+        vm.atualizarDocumento(documento)
+        vm.imprimir()
+        assertEquals(1, transporte.tentativas)   // NAO gastou a segunda
+        val estado = vm.estado.value
+        assertIs<EstadoImpressao.Falha>(estado)
+        assertIs<ErroImpressao.PermissaoNegada>(estado.erro)
+    }
+
+    @Test
+    fun `falha ao renderizar vira Falha em vez de escapar`() = runTest {
+        val vm = EtiquetaViewModel(StoreFalsa(), TransporteFalso()) { _, _ ->
+            throw IllegalStateException("documento invalido")
+        }
+        vm.atualizarDocumento(documento)
+        vm.imprimir()
+        val estado = vm.estado.value
+        assertIs<EstadoImpressao.Falha>(estado)
+        assertIs<ErroImpressao.FalhaAoPreparar>(estado.erro)
+    }
+
+    @Test
     fun `imprimir salva o rascunho`() = runTest {
         val store = StoreFalsa()
         val vm = EtiquetaViewModel(store, TransporteFalso(), ::renderizadorFalso)
@@ -1869,6 +1901,7 @@ import com.fatec.printec.etiqueta.LabelDocument
 import com.fatec.printec.impressao.ErroImpressao
 import com.fatec.printec.impressao.PrinterTarget
 import com.fatec.printec.impressao.PrinterTransport
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -1908,11 +1941,25 @@ class EtiquetaViewModel(
             return
         }
 
-        // O rascunho e salvo na impressao, nao a cada tecla.
-        store.salvarRascunho(doc)
-
         _estado.value = EstadoImpressao.Renderizando
-        val umaCopia = renderizar(doc, config.avancoFinalMm)
+        val umaCopia = try {
+            // O rascunho e salvo na impressao, nao a cada tecla.
+            store.salvarRascunho(doc)
+            renderizar(doc, config.avancoFinalMm)
+        } catch (e: CancellationException) {
+            throw e   // cancelamento nao e erro de impressao
+        } catch (e: ErroImpressao) {
+            _estado.value = EstadoImpressao.Falha(e)
+            return
+        } catch (e: Exception) {
+            // Nada pode escapar daqui sem virar estado. Uma excecao crua
+            // deixaria a UI presa em "Renderizando" para sempre, sem caminho
+            // para Falha e sem o usuario poder tentar de novo.
+            _estado.value = EstadoImpressao.Falha(
+                ErroImpressao.FalhaAoPreparar(e.message ?: e::class.simpleName.orEmpty()),
+            )
+            return
+        }
         val payload = ByteArray(umaCopia.size * doc.copias.coerceAtLeast(1))
         repeat(doc.copias.coerceAtLeast(1)) { i ->
             umaCopia.copyInto(payload, destinationOffset = i * umaCopia.size)
