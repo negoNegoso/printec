@@ -50,4 +50,22 @@ object Pc860 {
         }
         return ResultadoCodificacao(saida, substituidos)
     }
+
+    /**
+     * Inverso de [codificar], byte a byte. Existe para o teste que prova que
+     * o preview e o renderizador ESC/POS quebram linha da mesma forma
+     * (RendererIgualAoPreviewTest): decodificar pela MESMA tabela evita que o
+     * teste dependa de uma copia paralela dela, que poderia divergir da real
+     * sem ninguem notar.
+     */
+    fun decodificar(bytes: ByteArray): String = buildString {
+        for (byte in bytes) {
+            val i = byte.toInt() and 0xFF
+            when {
+                i in 0x20..0x7E -> append(i.toChar())
+                i - 0x80 in ALTOS.indices -> append(ALTOS[i - 0x80])
+                else -> append(SUBSTITUTO.toInt().toChar())
+            }
+        }
+    }
 }

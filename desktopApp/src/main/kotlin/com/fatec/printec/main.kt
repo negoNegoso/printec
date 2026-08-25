@@ -29,6 +29,7 @@ fun main() = application {
                     vm.imprimir(etiquetaDeCalibracao(), salvarRascunho = false)
                 }
             },
+            aoConcederPermissao = { },   // no desktop nao ha permissao de runtime
         )
     }
 }

@@ -6,7 +6,7 @@ package com.fatec.printec.etiqueta
  */
 object QuebraDeLinha {
 
-    fun colunasPara(escala: Int): Int = Impressora.COLUNAS_BASE / escala
+    fun colunasPara(escala: Int): Int = Impressora.COLUNAS_BASE / escala.coerceAtLeast(1)
 
     fun quebrar(texto: String, colunas: Int): List<String> {
         if (texto.isEmpty()) return listOf("")

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -30,7 +29,13 @@ import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.launch
 
 @Composable
-fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: (LabelDocument, Boolean) -> Unit) {
+fun TelaCompor(
+    vm: EtiquetaViewModel,
+    store: LabelStore,
+    imprimir: (LabelDocument, Boolean) -> Unit,
+    aoAbrirConfigBluetooth: () -> Unit,
+    aoConcederPermissao: () -> Unit,
+) {
     var campos by remember { mutableStateOf(CamposDoFormulario()) }
     var nomeParaSalvar by remember { mutableStateOf("") }
     val escopo = rememberCoroutineScope()
@@ -117,10 +122,11 @@ fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: (LabelDocumen
                     ) { Text("Salvar") }
                 }
 
-                Text(
-                    text = mensagemDe(estado),
-                    color = corDe(estado),
-                    style = MaterialTheme.typography.bodySmall,
+                StatusImpressao(
+                    estado = estado,
+                    aoAbrirConfigBluetooth = aoAbrirConfigBluetooth,
+                    aoConcederPermissao = aoConcederPermissao,
+                    aoTentarNovamente = { imprimir(campos.paraDocumento(), true) },
                 )
             }
         }
@@ -137,19 +143,4 @@ fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: (LabelDocumen
             }
         }
     }
-}
-
-private fun mensagemDe(estado: EstadoImpressao): String = when (estado) {
-    EstadoImpressao.Ocioso -> ""
-    EstadoImpressao.Renderizando -> "Preparando…"
-    EstadoImpressao.Conectando -> "Conectando…"
-    EstadoImpressao.Enviando -> "Enviando…"
-    EstadoImpressao.Sucesso -> "Impresso"
-    is EstadoImpressao.Falha -> estado.erro.message.orEmpty()
-}
-
-@Composable
-private fun corDe(estado: EstadoImpressao) = when (estado) {
-    is EstadoImpressao.Falha -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.onSurface
 }

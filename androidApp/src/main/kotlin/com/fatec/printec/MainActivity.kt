@@ -25,11 +25,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // API 28 concede na instalacao; so 12+ precisa pedir.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            pedirPermissao.launch(Manifest.permission.BLUETOOTH_CONNECT)
-        }
-
         val app = application as PrintecApp
         val vm = EtiquetaViewModel(app.store, app.transporte, EscPosRenderer::renderizar)
 
@@ -45,6 +40,15 @@ class MainActivity : ComponentActivity() {
                 aoImprimirTeste = {
                     escopo.launch {
                         vm.imprimir(etiquetaDeCalibracao(), salvarRascunho = false)
+                    }
+                },
+                // So 12+ precisa pedir (API 28 concede na instalacao); ligado
+                // a acao de recuperacao do PermissaoNegada em vez de disparado
+                // sozinho no arranque, para o pedido vir acompanhado do
+                // contexto de por que ele e necessario.
+                aoConcederPermissao = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        pedirPermissao.launch(Manifest.permission.BLUETOOTH_CONNECT)
                     }
                 },
             )

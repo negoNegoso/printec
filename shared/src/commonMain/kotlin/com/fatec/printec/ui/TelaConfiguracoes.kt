@@ -13,6 +13,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,14 +30,17 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun TelaConfiguracoes(
+    vm: EtiquetaViewModel,
     store: LabelStore,
     destinos: suspend () -> List<PrinterTarget>,
     aoAbrirConfigBluetooth: () -> Unit,
     aoImprimirTeste: () -> Unit,
+    aoConcederPermissao: () -> Unit,
 ) {
     var config by remember { mutableStateOf(Configuracoes()) }
     var lista by remember { mutableStateOf(emptyList<PrinterTarget>()) }
     val escopo = rememberCoroutineScope()
+    val estado by vm.estado.collectAsState()
 
     LaunchedEffect(Unit) {
         config = store.configuracoes().first()
@@ -66,15 +70,23 @@ fun TelaConfiguracoes(
 
         Text("Mídia")
         PerfilMidia.entries.forEach { perfil ->
+            // "Etiqueta com gap" fica desabilitada: nenhum codigo consome
+            // perfilMidia hoje, e persistir uma escolha que nao muda nada no
+            // ESC/POS emitido so engana quem esta configurando.
+            val disponivel = perfil == PerfilMidia.CONTINUO
             Row(Modifier.fillMaxWidth()) {
                 RadioButton(
                     selected = config.perfilMidia == perfil,
+                    enabled = disponivel,
                     onClick = {
                         config = config.copy(perfilMidia = perfil)
                         escopo.launch { store.salvarConfiguracoes(config) }
                     },
                 )
-                Text(if (perfil == PerfilMidia.CONTINUO) "Contínuo" else "Etiqueta com gap")
+                Text(
+                    if (perfil == PerfilMidia.CONTINUO) "Contínuo"
+                    else "Etiqueta com gap (em breve)",
+                )
             }
         }
 
@@ -94,6 +106,13 @@ fun TelaConfiguracoes(
         Text(
             "A etiqueta de teste traz a régua de 32 colunas, as escalas, acentos " +
                 "e um QR. Se ela imprime, o problema está no conteúdo, não na conexão.",
+        )
+
+        StatusImpressao(
+            estado = estado,
+            aoAbrirConfigBluetooth = aoAbrirConfigBluetooth,
+            aoConcederPermissao = aoConcederPermissao,
+            aoTentarNovamente = aoImprimirTeste,
         )
     }
 }

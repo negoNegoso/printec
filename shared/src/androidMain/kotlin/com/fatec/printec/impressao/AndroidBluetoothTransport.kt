@@ -26,14 +26,20 @@ class AndroidBluetoothTransport(private val context: Context) : PrinterTransport
     override suspend fun listarDestinos(): List<PrinterTarget> = withContext(Dispatchers.IO) {
         exigirPermissao()
         val adaptador = adaptador ?: return@withContext emptyList()
-        adaptador.bondedDevices.orEmpty().map { PrinterTarget(it.address, it.name ?: it.address) }
+        if (!adaptador.isEnabled) return@withContext emptyList()
+        dispositivosPareados(adaptador).map { PrinterTarget(it.address, it.name ?: it.address) }
     }
 
     override suspend fun imprimir(destino: PrinterTarget, bytes: ByteArray) =
         withContext(Dispatchers.IO) {
             exigirPermissao()
             val adaptador = adaptador ?: throw ErroImpressao.FalhaAoConectar("Bluetooth indisponível")
-            val dispositivo = adaptador.bondedDevices.orEmpty()
+            // Bluetooth desligado e um diagnostico diferente de "impressora nao
+            // pareada": pareamento sobrevive ao desligar o radio, entao sem esta
+            // checagem o usuario veria "nao pareada" com a impressora pareada
+            // havia meses, so porque o Bluetooth do aparelho esta desligado.
+            if (!adaptador.isEnabled) throw ErroImpressao.FalhaAoConectar("Bluetooth desligado")
+            val dispositivo = dispositivosPareados(adaptador)
                 .firstOrNull { it.address == destino.id }
                 ?: throw ErroImpressao.NaoPareada
 
@@ -61,6 +67,16 @@ class AndroidBluetoothTransport(private val context: Context) : PrinterTransport
                 runCatching { socket.close() }
             }
         }
+
+    // Isolado porque bondedDevices pode lancar SecurityException em alguns
+    // fabricantes mesmo com a permissao concedida (checagem de permissao e
+    // acesso de fato nao sao atomicos) -- sem este try/catch, essa excecao
+    // nao tipada derrubava o app.
+    private fun dispositivosPareados(adaptador: BluetoothAdapter) = try {
+        adaptador.bondedDevices.orEmpty()
+    } catch (e: SecurityException) {
+        throw ErroImpressao.FalhaAoConectar(e.message.orEmpty())
+    }
 
     private fun exigirPermissao() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return  // API 28: permissao de instalacao

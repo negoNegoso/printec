@@ -38,9 +38,11 @@ fun linhasDePreview(documento: LabelDocument): List<LinhaDePreview> =
             is Bloco.Linha -> QuebraDeLinha
                 .quebrar(bloco.texto, QuebraDeLinha.colunasPara(bloco.escala))
                 .map { LinhaDePreview(it, bloco.escala, bloco.alinhamento, bloco.negrito) }
-            is Bloco.Qr -> listOf(
-                LinhaDePreview("[ QR: ${bloco.conteudo.take(20)} ]", 1, Alinhamento.CENTRO, false),
-            )
+            is Bloco.Qr -> {
+                val truncado = bloco.conteudo.length > 20
+                val prefixo = bloco.conteudo.take(20) + if (truncado) "…" else ""
+                listOf(LinhaDePreview("[ QR: $prefixo ]", 1, Alinhamento.CENTRO, false))
+            }
             is Bloco.Avanco -> emptyList()
             is Bloco.Titulo -> emptyList()  // normalizado() ja converteu
         }

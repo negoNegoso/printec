@@ -6,6 +6,7 @@ import com.fatec.printec.impressao.ErroImpressao
 import com.fatec.printec.impressao.PrinterTarget
 import com.fatec.printec.impressao.PrinterTransport
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,9 +107,13 @@ class EtiquetaViewModel(
         // Retry unico: a LT-8359 costuma acordar na primeira tentativa e
         // aceitar a segunda. Mais que isso so faria o usuario esperar.
         repeat(2) { tentativa ->
+            // So Conectando: o transporte conecta e escreve numa chamada so,
+            // entao nao ha suspensao entre marcar Conectando e marcar Enviando
+            // -- nenhum coletor jamais veria o estado intermediario. Conectar
+            // e a fase que de fato falha (impressora hibernada), entao e ela
+            // que fica visivel durante toda a chamada.
             _estado.value = EstadoImpressao.Conectando
             try {
-                _estado.value = EstadoImpressao.Enviando
                 transporte.imprimir(destino, payload)
                 _estado.value = EstadoImpressao.Sucesso
                 return
@@ -119,6 +124,20 @@ class EtiquetaViewModel(
                     _estado.value = EstadoImpressao.Falha(e)
                     return
                 }
+                // A impressora hibernada tem mais chance de ter acordado se
+                // damos um instante antes de repetir. Tentar de novo no mesmo
+                // instante e o pior caso justamente para esse cenario -- e e
+                // essa politica que o teste de hardware vai avaliar.
+                delay(1_000)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Nada nao-tipado pode escapar do laco de envio: uma excecao
+                // crua aqui deixaria a UI presa em "Conectando" para sempre.
+                _estado.value = EstadoImpressao.Falha(
+                    ErroImpressao.FalhaAoEscrever(e.message ?: e::class.simpleName.orEmpty()),
+                )
+                return
             }
         }
     }

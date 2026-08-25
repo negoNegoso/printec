@@ -28,6 +28,18 @@ class EtiquetaDeTesteTest {
     }
 
     @Test
+    fun `a calibracao cobre as oito escalas, de 1x a 8x`() {
+        // Spec §8: 1x a 8x. Cobertura reduzida aqui custa uma sessao de testes
+        // de hardware inteira -- este e o instrumento que responde perguntas
+        // em aberto sobre a LT-8359.
+        val escalas = etiquetaDeCalibracao().blocos
+            .filterIsInstance<Bloco.Linha>()
+            .filter { it.texto.startsWith("escala ") }
+            .map { it.escala }
+        assertEquals((1..8).toList(), escalas)
+    }
+
+    @Test
     fun `nenhum caractere da calibracao e substituido`() {
         val doc = etiquetaDeCalibracao()
         val fora = doc.blocos.filterIsInstance<Bloco.Linha>()
