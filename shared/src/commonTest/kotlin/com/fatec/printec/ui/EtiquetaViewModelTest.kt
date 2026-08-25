@@ -139,4 +139,29 @@ class EtiquetaViewModelTest {
         assertEquals(1, transporte.tentativas)
         assertEquals(9, transporte.bytesRecebidos?.size)  // 3 bytes x 3 copias
     }
+
+    @Test
+    fun `chamada reentrante feita durante o envio e ignorada pela guarda`() = runTest {
+        // Simula uma segunda origem (outro botao, outro toque) chamando
+        // vm.imprimir() enquanto a primeira impressao ainda esta "Enviando".
+        // A chamada reentrante acontece de dentro do proprio transporte.imprimir(),
+        // ou seja, no mesmo call stack da primeira chamada, nao em sequencia apos
+        // ela terminar — e exatamente o cenario que a guarda de reentrancia em
+        // EtiquetaViewModel.imprimir() precisa barrar. Sem a guarda, o transporte
+        // seria acionado DUAS vezes aqui; com ela, so uma.
+        lateinit var vm: EtiquetaViewModel
+        val transporte = object : PrinterTransport {
+            var chamadas = 0
+            override suspend fun listarDestinos(): List<PrinterTarget> = emptyList()
+            override suspend fun imprimir(destino: PrinterTarget, bytes: ByteArray) {
+                chamadas++
+                if (chamadas == 1) vm.imprimir()
+            }
+        }
+        vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
+        vm.atualizarDocumento(documento)
+        vm.imprimir()
+        assertEquals(1, transporte.chamadas)
+        assertIs<EstadoImpressao.Sucesso>(vm.estado.value)
+    }
 }
