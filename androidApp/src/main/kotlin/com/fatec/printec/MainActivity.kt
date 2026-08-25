@@ -25,6 +25,18 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        // So 12+ precisa pedir (API 28 concede na instalacao). Sem isto, o
+        // primeiro uso nunca chega a ter permissao: listarDestinos() lanca
+        // PermissaoNegada, a lista de impressoras fica vazia, e sem impressora
+        // selecionada o unico erro que a UI mostra e NenhumaImpressoraSelecionada
+        // -- cuja acao abre as configuracoes de Bluetooth do sistema, que nao
+        // concedem permissao de app nenhuma. O botao "Conceder permissao" (via
+        // aoConcederPermissao, ligado ao mesmo launcher abaixo) so aparece
+        // quando algum ponto do fluxo efetivamente reporta PermissaoNegada.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            pedirPermissao.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+
         val app = application as PrintecApp
         val vm = EtiquetaViewModel(app.store, app.transporte, EscPosRenderer::renderizar)
 
@@ -42,10 +54,11 @@ class MainActivity : ComponentActivity() {
                         vm.imprimir(etiquetaDeCalibracao(), salvarRascunho = false)
                     }
                 },
-                // So 12+ precisa pedir (API 28 concede na instalacao); ligado
-                // a acao de recuperacao do PermissaoNegada em vez de disparado
-                // sozinho no arranque, para o pedido vir acompanhado do
-                // contexto de por que ele e necessario.
+                // Mesmo launcher do pedido de arranque acima. Fica tambem
+                // ligado aqui, como acao de recuperacao do PermissaoNegada,
+                // para cobrir o caso de o usuario ter negado da primeira vez
+                // (ou revogado depois em Ajustes do sistema) e precisar de um
+                // segundo pedido, desta vez com o contexto de por que.
                 aoConcederPermissao = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         pedirPermissao.launch(Manifest.permission.BLUETOOTH_CONNECT)

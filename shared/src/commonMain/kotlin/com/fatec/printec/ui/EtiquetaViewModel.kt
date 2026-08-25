@@ -43,6 +43,28 @@ class EtiquetaViewModel(
     }
 
     /**
+     * Registra uma falha que aconteceu FORA de [imprimir] -- hoje, so
+     * TelaConfiguracoes ao listar destinos(). Sem isto, uma permissao de
+     * Bluetooth negada faz a lista de impressoras aparecer vazia sem
+     * explicacao nenhuma: NENHUM erro tipado chega a StatusImpressao, entao
+     * o botao "Conceder permissao" nunca aparece e o primeiro uso empaca.
+     *
+     * Nao sobrescreve um estado "em andamento" -- essa checagem existe para
+     * o caso de a tela Ajustes recarregar destinos() (ex.: reabrir a aba)
+     * enquanto uma impressao disparada de outra aba ainda esta rodando no
+     * escopo do app; a falha em listar impressoras nao pode apagar o status
+     * visivel dessa impressao.
+     */
+    fun reportarFalha(erro: ErroImpressao) {
+        val emAndamento = _estado.value
+        if (emAndamento is EstadoImpressao.Renderizando ||
+            emAndamento is EstadoImpressao.Conectando ||
+            emAndamento is EstadoImpressao.Enviando
+        ) return
+        _estado.value = EstadoImpressao.Falha(erro)
+    }
+
+    /**
      * @param documento o que imprimir — vem do chamador, nunca do proprio
      *   ViewModel. Reimprimir uma etiqueta salva ou disparar a etiqueta de
      *   teste nao pode sobrescrever o que o usuario esta compondo na outra
@@ -70,7 +92,25 @@ class EtiquetaViewModel(
         ) return
         _estado.value = EstadoImpressao.Renderizando
 
-        val config = store.configuracoes().first()
+        // Le configuracoes() so DEPOIS de reivindicar Renderizando (ver acima),
+        // mas ainda assim precisa de try/catch: e I/O real (garantirConfiguracao
+        // + mapToOne, que lanca se a linha nao existir) e, sem isto, um erro
+        // aqui deixaria o estado preso em Renderizando para sempre -- a guarda
+        // de reentrancia rejeitaria toda chamada seguinte e
+        // limparEstadoSeConcluido() so limpa estados terminais.
+        val config = try {
+            store.configuracoes().first()
+        } catch (e: CancellationException) {
+            throw e   // cancelamento nao e erro de impressao
+        } catch (e: ErroImpressao) {
+            _estado.value = EstadoImpressao.Falha(e)
+            return
+        } catch (e: Exception) {
+            _estado.value = EstadoImpressao.Falha(
+                ErroImpressao.FalhaAoPreparar(e.message ?: e::class.simpleName.orEmpty()),
+            )
+            return
+        }
 
         val id = config.impressoraId
         if (id.isNullOrBlank()) {
