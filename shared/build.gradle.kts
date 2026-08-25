@@ -84,6 +84,7 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(libs.sqldelight.sqliteDriver)
+            implementation(libs.jSerialComm)
         }
         jvmTest.dependencies {
             implementation(libs.sqldelight.sqliteDriver)
