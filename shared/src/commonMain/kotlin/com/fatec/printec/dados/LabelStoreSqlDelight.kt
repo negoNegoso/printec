@@ -10,16 +10,19 @@ import com.fatec.printec.etiqueta.Bloco
 import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withContext
 
 class LabelStoreSqlDelight(driver: SqlDriver) : LabelStore {
 
     private val q = PrintecDatabase(driver).printecQueries
 
-    init {
-        q.garantirConfiguracao()
-    }
-
+    // Nao roda no construtor: LabelStoreSqlDelight e instanciado em
+    // Application.onCreate/main(), na thread principal. Cada ponto de entrada
+    // que precisa da linha de configuracao a garante por conta propria, ja
+    // dentro de Dispatchers.IO.
     override fun configuracoes(): Flow<Configuracoes> =
         q.lerConfiguracao().asFlow().mapToOne(Dispatchers.Default).map { linha ->
             Configuracoes(
@@ -28,10 +31,13 @@ class LabelStoreSqlDelight(driver: SqlDriver) : LabelStore {
                 perfilMidia = PerfilMidia.valueOf(linha.perfil_midia),
                 avancoFinalMm = linha.avanco_final_mm.toInt(),
             )
-        }
+        }.onStart { q.garantirConfiguracao() }.flowOn(Dispatchers.IO)
 
     override fun etiquetasSalvas(): Flow<List<EtiquetaSalva>> =
         q.listarEtiquetas().asFlow().mapToList(Dispatchers.Default).map { linhas ->
+            // Uma consulta (blocosDe) por etiqueta da lista. Sem flowOn, este
+            // map roda no contexto do coletor -- a UI -- fazendo N consultas
+            // bloqueantes por emissao na thread principal.
             linhas.map { linha ->
                 EtiquetaSalva(
                     id = linha.id,
@@ -42,25 +48,28 @@ class LabelStoreSqlDelight(driver: SqlDriver) : LabelStore {
                     ),
                 )
             }
-        }
+        }.flowOn(Dispatchers.IO)
 
     override suspend fun salvarConfiguracoes(configuracoes: Configuracoes) {
-        q.atualizarConfiguracao(
-            impressora_id = configuracoes.impressoraId,
-            impressora_nome = configuracoes.impressoraNome,
-            perfil_midia = configuracoes.perfilMidia.name,
-            avanco_final_mm = configuracoes.avancoFinalMm.toLong(),
-        )
+        withContext(Dispatchers.IO) {
+            q.garantirConfiguracao()
+            q.atualizarConfiguracao(
+                impressora_id = configuracoes.impressoraId,
+                impressora_nome = configuracoes.impressoraNome,
+                perfil_midia = configuracoes.perfilMidia.name,
+                avanco_final_mm = configuracoes.avancoFinalMm.toLong(),
+            )
+        }
     }
 
     override suspend fun salvarEtiqueta(nome: String, documento: LabelDocument): Long =
-        gravar(nome = nome, rascunho = false, documento = documento)
+        withContext(Dispatchers.IO) { gravar(nome = nome, rascunho = false, documento = documento) }
 
     override suspend fun excluirEtiqueta(id: Long) {
-        q.excluirEtiqueta(id)
+        withContext(Dispatchers.IO) { q.excluirEtiqueta(id) }
     }
 
-    override suspend fun salvarRascunho(documento: LabelDocument) {
+    override suspend fun salvarRascunho(documento: LabelDocument) = withContext(Dispatchers.IO) {
         // Uma transacao SO, cobrindo as duas operacoes: entre apagar o rascunho
         // antigo e gravar o novo nao pode existir um instante com zero rascunhos.
         // Sem isso, um crash no meio perde o que o usuario digitou.
@@ -70,9 +79,9 @@ class LabelStoreSqlDelight(driver: SqlDriver) : LabelStore {
         }
     }
 
-    override suspend fun carregarRascunho(): LabelDocument? {
-        val linha = q.lerRascunho().executeAsOneOrNull() ?: return null
-        return LabelDocument(lerBlocos(linha.id), linha.copias.toInt())
+    override suspend fun carregarRascunho(): LabelDocument? = withContext(Dispatchers.IO) {
+        val linha = q.lerRascunho().executeAsOneOrNull() ?: return@withContext null
+        LabelDocument(lerBlocos(linha.id), linha.copias.toInt())
     }
 
     private fun gravar(nome: String?, rascunho: Boolean, documento: LabelDocument): Long {
@@ -131,7 +140,13 @@ class LabelStoreSqlDelight(driver: SqlDriver) : LabelStore {
         is Bloco.Linha -> Descricao(
             "LINHA", bloco.texto, bloco.escala, bloco.alinhamento.name, bloco.negrito,
         )
-        // tamanhoModulo e milimetros reaproveitam a coluna `escala`.
+        // Nao ha coluna dedicada para o tamanho do modulo do QR nem para os
+        // milimetros do Avanco -- ambos reaproveitam a coluna `escala`, que so
+        // significa "escala de fonte" para Bloco.Linha/Titulo. lerBlocos() (logo
+        // acima) faz o caminho inverso lendo `b.escala` de volta como
+        // tamanhoModulo/milimetros. Se motivo do reaproveitamento nao ficar
+        // obvio aqui, o proximo a mexer em lerBlocos vai "consertar" o que
+        // parece um bug e quebrar QR/Avanco de verdade.
         is Bloco.Qr -> Descricao("QR", bloco.conteudo, bloco.tamanhoModulo, "CENTRO", false)
         is Bloco.Avanco -> Descricao("AVANCO", null, bloco.milimetros, "ESQUERDA", false)
     }

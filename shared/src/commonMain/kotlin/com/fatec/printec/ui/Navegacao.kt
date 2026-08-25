@@ -33,6 +33,7 @@ fun AppEtiquetas(
     destinos: suspend () -> List<com.fatec.printec.impressao.PrinterTarget>,
     aoAbrirConfigBluetooth: () -> Unit,
     aoImprimirTeste: () -> Unit,
+    aoConcederPermissao: () -> Unit,
 ) {
     var tela by remember { mutableStateOf(Tela.COMPOR) }
 
@@ -65,10 +66,14 @@ fun AppEtiquetas(
         ) { paddings ->
             Box(Modifier.fillMaxSize().padding(paddings)) {
                 when (tela) {
-                    Tela.COMPOR -> TelaCompor(vm, store, imprimir)
-                    Tela.ETIQUETAS -> TelaEtiquetas(vm, store, imprimir)
+                    Tela.COMPOR -> TelaCompor(
+                        vm, store, imprimir, aoAbrirConfigBluetooth, aoConcederPermissao,
+                    )
+                    Tela.ETIQUETAS -> TelaEtiquetas(
+                        vm, store, imprimir, aoAbrirConfigBluetooth, aoConcederPermissao,
+                    )
                     Tela.CONFIGURACOES -> TelaConfiguracoes(
-                        store, destinos, aoAbrirConfigBluetooth, aoImprimirTeste,
+                        vm, store, destinos, aoAbrirConfigBluetooth, aoImprimirTeste, aoConcederPermissao,
                     )
                 }
             }

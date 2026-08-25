@@ -79,7 +79,11 @@ class LabelStoreTest {
     }
 
     @Test
-    fun `salvar rascunho duas vezes mantem exatamente um rascunho, o mais recente`() = runTest {
+    fun `salvar rascunho duas vezes sobrescreve o anterior em vez de acumular`() = runTest {
+        // Nome deliberadamente NAO fala de atomicidade: este teste so olha o
+        // resultado apos duas chamadas sequenciais bem sucedidas, entao ele
+        // passaria igual contra uma implementacao nao-atomica (excluir fora da
+        // transacao de gravar). Nao prova nada sobre o caso de crash no meio.
         store.salvarRascunho(exemplo)
         store.salvarRascunho(exemplo.copy(copias = 9))
 
