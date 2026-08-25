@@ -25,15 +25,8 @@ class EtiquetaViewModel(
     private val transporte: PrinterTransport,
     private val renderizar: (LabelDocument, Int) -> ByteArray,
 ) {
-    private val _documento = MutableStateFlow(LabelDocument())
-    val documento: StateFlow<LabelDocument> = _documento.asStateFlow()
-
     private val _estado = MutableStateFlow<EstadoImpressao>(EstadoImpressao.Ocioso)
     val estado: StateFlow<EstadoImpressao> = _estado.asStateFlow()
-
-    fun atualizarDocumento(novo: LabelDocument) {
-        _documento.value = novo
-    }
 
     /**
      * Chamado ao trocar de tela. Sem isto, o estado e global ao ViewModel e a
@@ -48,18 +41,34 @@ class EtiquetaViewModel(
         }
     }
 
-    suspend fun imprimir() {
+    /**
+     * @param documento o que imprimir — vem do chamador, nunca do proprio
+     *   ViewModel. Reimprimir uma etiqueta salva ou disparar a etiqueta de
+     *   teste nao pode sobrescrever o que o usuario esta compondo na outra
+     *   tela (ver [salvarRascunho]).
+     * @param salvarRascunho so `true` quando [documento] E o que o usuario
+     *   estava digitando na tela Compor. Reimpressao pela lista de salvas e a
+     *   etiqueta de teste imprimem um documento que NAO e o rascunho do
+     *   usuario e por isso nao podem gravar por cima dele.
+     */
+    suspend fun imprimir(documento: LabelDocument, salvarRascunho: Boolean = false) {
         // Guarda de reentrancia. A UI desabilita o botao IMPRIMIR, mas ha mais
         // de um ponto de entrada — compor, reimprimir pela lista de salvas, e a
         // etiqueta de teste nas configuracoes — e nem todos tem botao para
         // desabilitar. Duas impressoes concorrentes gastam papel de verdade.
+        //
+        // O estado e marcado Renderizando ANTES de qualquer suspensao —
+        // inclusive a leitura de configuracoes() logo abaixo. Se a marcacao
+        // esperasse a config chegar, duas chamadas concorrentes fariam a
+        // checagem acima antes que qualquer uma delas marcasse o estado, e as
+        // duas passariam pela guarda.
         val emAndamento = _estado.value
         if (emAndamento is EstadoImpressao.Renderizando ||
             emAndamento is EstadoImpressao.Conectando ||
             emAndamento is EstadoImpressao.Enviando
         ) return
+        _estado.value = EstadoImpressao.Renderizando
 
-        val doc = _documento.value
         val config = store.configuracoes().first()
 
         val id = config.impressoraId
@@ -68,11 +77,11 @@ class EtiquetaViewModel(
             return
         }
 
-        _estado.value = EstadoImpressao.Renderizando
         val umaCopia = try {
-            // O rascunho e salvo na impressao, nao a cada tecla.
-            store.salvarRascunho(doc)
-            renderizar(doc, config.avancoFinalMm)
+            // O rascunho e salvo na impressao, nao a cada tecla — e somente
+            // quando quem chamou pediu (ver documentacao do parametro acima).
+            if (salvarRascunho) store.salvarRascunho(documento)
+            renderizar(documento, config.avancoFinalMm)
         } catch (e: CancellationException) {
             throw e   // cancelamento nao e erro de impressao
         } catch (e: ErroImpressao) {
@@ -87,8 +96,8 @@ class EtiquetaViewModel(
             )
             return
         }
-        val payload = ByteArray(umaCopia.size * doc.copias.coerceAtLeast(1))
-        repeat(doc.copias.coerceAtLeast(1)) { i ->
+        val payload = ByteArray(umaCopia.size * documento.copias.coerceAtLeast(1))
+        repeat(documento.copias.coerceAtLeast(1)) { i ->
             umaCopia.copyInto(payload, destinationOffset = i * umaCopia.size)
         }
 

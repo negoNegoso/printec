@@ -64,6 +64,28 @@ class EscPosRendererTest {
     }
 
     @Test
+    fun `qr com acentos usa o comprimento dos bytes UTF-8, nao dos caracteres`() {
+        // "acao" em UTF-8: 61 C3 A7 C3 A3 6F -- 6 bytes para 4 caracteres. Se o
+        // comprimento fosse contado em caracteres (como o QRCode do
+        // escpos-coffee fazia), pL/pH sairia 7 (4+3) e o payload seria
+        // truncado no meio de um caractere multibyte.
+        val doc = LabelDocument(listOf(Bloco.Qr("ação")))
+        val hex = hex(EscPosRenderer.renderizar(doc, 0))
+
+        // Comando "armazenar dados" (cn=31 fn=50): pL pH = 09 00 (6 bytes + 3).
+        assertTrue(hex.contains("1D 28 6B 09 00 31 50 30 61 C3 A7 C3 A3 6F"), "obtido: $hex")
+    }
+
+    @Test
+    fun `qr ascii segue emitindo o prefixo GS parenteses k`() {
+        val doc = LabelDocument(listOf(Bloco.Qr("ABC")))
+        val hex = hex(EscPosRenderer.renderizar(doc, 0))
+        assertTrue(hex.contains("1D 28 6B"), "obtido: $hex")
+        // "ABC" -> 3 bytes + 3 = 6 = pL, pH = 00.
+        assertTrue(hex.contains("1D 28 6B 06 00 31 50 30 41 42 43"), "obtido: $hex")
+    }
+
+    @Test
     fun `avanco final e convertido de mm para dots`() {
         val bytes = EscPosRenderer.renderizar(LabelDocument(), avancoFinalMm = 3)
         // ESC J 24  (3 mm x 8 dots/mm)

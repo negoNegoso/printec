@@ -7,9 +7,6 @@ import com.fatec.printec.etiqueta.LabelDocument
 import com.fatec.printec.etiqueta.Pc860
 import com.fatec.printec.etiqueta.QuebraDeLinha
 import com.fatec.printec.etiqueta.normalizado
-import com.github.anastaciocintra.escpos.EscPos
-import com.github.anastaciocintra.escpos.EscPosConst
-import com.github.anastaciocintra.escpos.barcode.QRCode
 import java.io.ByteArrayOutputStream
 
 object EscPosRenderer {
@@ -50,15 +47,22 @@ object EscPosRenderer {
     }
 
     private fun ByteArrayOutputStream.escreverQr(bloco: Bloco.Qr) {
-        // Delegado ao escpos-coffee: GS ( k encadeia quatro comandos com
-        // comprimento little-endian, e errar isso a mao e facil demais.
-        val escpos = EscPos(this)
-        val qr = QRCode().apply {
-            setSize(bloco.tamanhoModulo)
-            setJustification(EscPosConst.Justification.Center)
-        }
-        escpos.write(qr, bloco.conteudo)
-        escpos.flush()
+        // GS ( k a mao: o QRCode do escpos-coffee dimensiona o payload em
+        // CARACTERES e escreve bytes, truncando qualquer conteudo nao-ASCII em
+        // silencio. QR guarda bytes; UTF-8 e o que os leitores esperam.
+        comando(ESC, 0x61, 1)   // centralizado, mesmo ESC a das linhas
+
+        val dados = bloco.conteudo.encodeToByteArray()
+
+        comando(GS, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00)   // modelo 2
+        comando(GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, bloco.tamanhoModulo)
+        comando(GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31)         // correcao M
+
+        val n = dados.size + 3
+        comando(GS, 0x28, 0x6B, n and 0xFF, (n shr 8) and 0xFF, 0x31, 0x50, 0x30)
+        write(dados)
+
+        comando(GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30)         // imprimir
     }
 
     private fun ByteArrayOutputStream.avancar(milimetros: Int) {
