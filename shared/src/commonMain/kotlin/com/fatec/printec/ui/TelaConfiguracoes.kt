@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.fatec.printec.dados.Configuracoes
 import com.fatec.printec.dados.LabelStore
 import com.fatec.printec.dados.PerfilMidia
+import com.fatec.printec.impressao.ErroImpressao
 import com.fatec.printec.impressao.PrinterTarget
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -44,7 +45,18 @@ fun TelaConfiguracoes(
 
     LaunchedEffect(Unit) {
         config = store.configuracoes().first()
-        lista = runCatching { destinos() }.getOrDefault(emptyList())
+        // Descartar o erro aqui (como um runCatching cru faria) faz uma
+        // permissao de Bluetooth negada parecer "nenhuma impressora existe":
+        // lista fica vazia sem nenhuma explicacao, e o botao "Conceder
+        // permissao" -- a unica saida do primeiro uso em Android 12+ -- nunca
+        // chega a aparecer. ErroImpressao especificamente, nao Exception:
+        // um erro nao tipado aqui deve continuar propagando.
+        lista = try {
+            destinos()
+        } catch (e: ErroImpressao) {
+            vm.reportarFalha(e)
+            emptyList()
+        }
     }
 
     Column(

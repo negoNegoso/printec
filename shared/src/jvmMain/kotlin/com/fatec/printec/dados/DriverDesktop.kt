@@ -26,10 +26,23 @@ class DriverDesktop(private val diretorio: File = diretorioPadrao()) : FabricaDe
         // existe mas nunca chegou a gravar user_version. PRAGMA user_version
         // e a fonte da verdade: 0 e banco novo (ou incompleto), qualquer coisa
         // abaixo da versao do Schema precisa migrar antes de ser usado.
+        //
+        // Mas versao 0 tambem e o que TODO printec.db criado antes desta
+        // classe gravar user_version tem -- e esses arquivos ja tem as
+        // tabelas populadas. Sem distinguir os dois casos, Schema.create()
+        // roda contra tabelas que ja existem (Printec.sq nao usa
+        // "IF NOT EXISTS") e todo banco pre-existente passa a falhar no
+        // proximo lancamento do app com "table etiqueta already exists".
         val versaoNoArquivo = lerUserVersion(driver)
         when {
-            versaoNoArquivo == 0L -> {
+            versaoNoArquivo == 0L && !tabelaEtiquetaExiste(driver) -> {
                 PrintecDatabase.Schema.create(driver)
+                gravarUserVersion(driver, PrintecDatabase.Schema.version)
+            }
+            versaoNoArquivo == 0L -> {
+                // Banco pre-existente sem user_version gravado: as tabelas ja
+                // estao la, so falta carimbar a versao para nao cair aqui de
+                // novo no proximo lancamento.
                 gravarUserVersion(driver, PrintecDatabase.Schema.version)
             }
             versaoNoArquivo < PrintecDatabase.Schema.version -> {
@@ -44,6 +57,13 @@ class DriverDesktop(private val diretorio: File = diretorioPadrao()) : FabricaDe
         identifier = null,
         sql = "PRAGMA user_version;",
         mapper = { cursor -> QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L) },
+        parameters = 0,
+    ).value
+
+    private fun tabelaEtiquetaExiste(driver: SqlDriver): Boolean = driver.executeQuery(
+        identifier = null,
+        sql = "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'etiqueta';",
+        mapper = { cursor -> QueryResult.Value(if (cursor.next().value) (cursor.getLong(0) ?: 0L) > 0L else false) },
         parameters = 0,
     ).value
 
