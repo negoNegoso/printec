@@ -6,7 +6,7 @@ import androidx.compose.ui.window.application
 import com.fatec.printec.dados.DriverDesktop
 import com.fatec.printec.dados.LabelStoreSqlDelight
 import com.fatec.printec.etiqueta.etiquetaDeCalibracao
-import com.fatec.printec.impressao.DesktopUsbTransport
+import com.fatec.printec.impressao.TransporteDesktop
 import com.fatec.printec.impressao.EscPosRenderer
 import com.fatec.printec.ui.AppEtiquetas
 import com.fatec.printec.ui.EtiquetaViewModel
@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 fun main() = application {
     val store = LabelStoreSqlDelight(DriverDesktop().criar())
-    val transporte = DesktopUsbTransport()
+    // Lista USB e portas seriais (Bluetooth pareado no Windows) juntas.
+    val transporte = TransporteDesktop()
     val vm = EtiquetaViewModel(store, transporte, EscPosRenderer::renderizar)
 
     Window(onCloseRequest = ::exitApplication, title = "Printec") {

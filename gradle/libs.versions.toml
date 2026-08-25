@@ -17,6 +17,7 @@ kotlinx-coroutines = "1.11.0"
 kotlinxSerialization = "1.9.0"
 material3 = "1.11.0-alpha07"
 escposCoffee = "4.1.0"
+jSerialComm = "2.11.0"
 sqldelight = "2.1.0"
 desugarJdkLibs = "2.1.5"
 
@@ -43,6 +44,7 @@ kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-s
 kotlinx-coroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 escpos-coffee = { module = "com.github.anastaciocintra:escpos-coffee", version.ref = "escposCoffee" }
+jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "jSerialComm" }
 sqldelight-androidDriver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
 sqldelight-sqliteDriver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 sqldelight-coroutinesExtensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
