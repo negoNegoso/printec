@@ -1,11 +1,14 @@
 package com.fatec.printec.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -48,12 +51,18 @@ fun TelaCompor(
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val largo = maxWidth > 600.dp
-        val preview = @Composable {
-            PreviewEtiqueta(campos.paraDocumento(), Modifier.padding(8.dp))
+        // Capturado aqui: dentro do Column o receiver do BoxWithConstraints fica sombreado.
+        val alturaDisponivel = maxHeight
+        val preview = @Composable { seu: Modifier ->
+            // O preview rola por conta propria: uma etiqueta longa passa da
+            // altura disponivel e, sem isto, o excedente era simplesmente cortado.
+            Box(seu.verticalScroll(rememberScrollState())) {
+                PreviewEtiqueta(campos.paraDocumento(), Modifier.padding(8.dp))
+            }
         }
-        val formulario = @Composable {
+        val formulario = @Composable { seu: Modifier ->
             Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(8.dp),
+                seu.verticalScroll(rememberScrollState()).padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(
@@ -133,13 +142,16 @@ fun TelaCompor(
 
         if (largo) {
             Row(Modifier.fillMaxSize()) {
-                Column(Modifier.weight(1f)) { preview() }
-                Column(Modifier.weight(1f)) { formulario() }
+                preview(Modifier.weight(1f).fillMaxHeight())
+                formulario(Modifier.weight(1f).fillMaxHeight())
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                preview()
-                formulario()
+                // Teto no preview. Sem ele, um filho de Column sem peso toma toda
+                // a altura que pedir: a etiqueta cresce, come a tela inteira e
+                // sobra ZERO para o formulario, que fica inutilizavel.
+                preview(Modifier.fillMaxWidth().heightIn(max = alturaDisponivel * 0.4f))
+                formulario(Modifier.weight(1f))
             }
         }
     }

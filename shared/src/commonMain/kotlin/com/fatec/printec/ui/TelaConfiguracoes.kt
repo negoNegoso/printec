@@ -1,11 +1,17 @@
 package com.fatec.printec.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -59,8 +65,17 @@ fun TelaConfiguracoes(
         }
     }
 
+    // Esta tela e a mais alta do app — impressoras pareadas, midia, avanco,
+    // botao de teste, paragrafo explicativo e area de status. Sem scroll, tudo
+    // que passa da dobra num celular fica INALCANCAVEL, nao so escondido.
+    Box(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        contentAlignment = Alignment.TopCenter,
+    ) {
     Column(
-        Modifier.fillMaxWidth().padding(16.dp),
+        // Teto de largura: sem ele, radios e botoes esticam de ponta a ponta
+        // numa janela de desktop maximizada.
+        Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Impressora")
@@ -126,5 +141,6 @@ fun TelaConfiguracoes(
             aoConcederPermissao = aoConcederPermissao,
             aoTentarNovamente = aoImprimirTeste,
         )
+    }
     }
 }
