@@ -11,9 +11,16 @@ class DriverDesktop(private val diretorio: File = diretorioPadrao()) : FabricaDe
         diretorio.mkdirs()
         val arquivo = File(diretorio, "printec.db")
         val existia = arquivo.exists()
-        val driver = JdbcSqliteDriver("jdbc:sqlite:${arquivo.absolutePath}")
+        // Para um banco em arquivo, o JdbcSqliteDriver abre e fecha uma conexao
+        // por statement — "PRAGMA foreign_keys=ON;" executado uma vez so vale
+        // para a conexao que morre em seguida. A propriedade de conexao do
+        // driver JDBC do SQLite e aplicada a TODA conexao nova, inclusive as
+        // que os DELETEs subsequentes abrem.
+        val driver = JdbcSqliteDriver(
+            "jdbc:sqlite:${arquivo.absolutePath}",
+            java.util.Properties().apply { put("foreign_keys", "true") },
+        )
         if (!existia) PrintecDatabase.Schema.create(driver)
-        driver.execute(null, "PRAGMA foreign_keys=ON;", 0)
         return driver
     }
 

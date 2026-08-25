@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.fatec.printec.dados.LabelStore
+import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.launch
 
 enum class Tela(val rotulo: String) {
@@ -41,7 +42,9 @@ fun AppEtiquetas(
     // estado terminal, o botao IMPRIMIR ficaria desabilitado para sempre e o
     // fluxo de bytes poderia ser cortado no meio do envio para a impressora.
     val escopoDoApp = rememberCoroutineScope()
-    val imprimir: () -> Unit = { escopoDoApp.launch { vm.imprimir() } }
+    val imprimir: (LabelDocument, Boolean) -> Unit = { documento, salvarRascunho ->
+        escopoDoApp.launch { vm.imprimir(documento, salvarRascunho) }
+    }
 
     LaunchedEffect(tela) { vm.limparEstadoSeConcluido() }
 

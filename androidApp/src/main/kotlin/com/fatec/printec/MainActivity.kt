@@ -44,8 +44,7 @@ class MainActivity : ComponentActivity() {
                 },
                 aoImprimirTeste = {
                     escopo.launch {
-                        vm.atualizarDocumento(etiquetaDeCalibracao())
-                        vm.imprimir()
+                        vm.imprimir(etiquetaDeCalibracao(), salvarRascunho = false)
                     }
                 },
             )

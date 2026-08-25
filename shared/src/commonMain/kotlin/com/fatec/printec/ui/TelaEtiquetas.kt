@@ -19,11 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fatec.printec.dados.EtiquetaSalva
 import com.fatec.printec.dados.LabelStore
+import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @Composable
-fun TelaEtiquetas(vm: EtiquetaViewModel, store: LabelStore, imprimir: () -> Unit) {
+fun TelaEtiquetas(vm: EtiquetaViewModel, store: LabelStore, imprimir: (LabelDocument, Boolean) -> Unit) {
     var etiquetas by remember { mutableStateOf(emptyList<EtiquetaSalva>()) }
     val escopo = rememberCoroutineScope()
 
@@ -40,8 +41,7 @@ fun TelaEtiquetas(vm: EtiquetaViewModel, store: LabelStore, imprimir: () -> Unit
                 Text(etiqueta.nome)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
-                        vm.atualizarDocumento(etiqueta.documento)
-                        imprimir()
+                        imprimir(etiqueta.documento, false)
                     }) { Text("Imprimir") }
                     OutlinedButton(onClick = {
                         escopo.launch { store.excluirEtiqueta(etiqueta.id) }

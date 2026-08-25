@@ -26,8 +26,7 @@ fun main() = application {
             aoAbrirConfigBluetooth = { },   // no desktop a conexao e USB
             aoImprimirTeste = {
                 escopo.launch {
-                    vm.atualizarDocumento(etiquetaDeCalibracao())
-                    vm.imprimir()
+                    vm.imprimir(etiquetaDeCalibracao(), salvarRascunho = false)
                 }
             },
         )

@@ -8,6 +8,7 @@ import com.fatec.printec.etiqueta.Bloco
 import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlin.io.path.createTempDirectory
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,10 +48,26 @@ class LabelStoreTest {
 
     @Test
     fun `excluir etiqueta apaga os blocos em cascata`() = runTest {
-        val id = store.salvarEtiqueta("Modelo 1", exemplo)
-        assertTrue(PrintecDatabase(driver).printecQueries.contarBlocos().executeAsOne() > 0)
-        store.excluirEtiqueta(id)
-        assertEquals(0L, PrintecDatabase(driver).printecQueries.contarBlocos().executeAsOne())
+        // Este caso especificamente NAO pode rodar contra JdbcSqliteDriver.IN_MEMORY:
+        // em memoria o driver mantem uma unica conexao viva, entao um
+        // "PRAGMA foreign_keys=ON" avulso pareceria funcionar mesmo sem a
+        // fiacao real. Em arquivo, o JdbcSqliteDriver abre e fecha uma conexao
+        // por statement — exatamente o modelo publicado em producao — e so
+        // exercita o ON DELETE CASCADE de verdade se a pragma estiver presa na
+        // propriedade de conexao do driver (ver DriverDesktop).
+        val diretorioTemporario = createTempDirectory("printec-cascata-").toFile()
+        try {
+            val driverArquivo = DriverDesktop(diretorioTemporario).criar()
+            val storeArquivo = LabelStoreSqlDelight(driverArquivo)
+
+            val id = storeArquivo.salvarEtiqueta("Modelo 1", exemplo)
+            assertTrue(PrintecDatabase(driverArquivo).printecQueries.contarBlocos().executeAsOne() > 0)
+            storeArquivo.excluirEtiqueta(id)
+            assertEquals(0L, PrintecDatabase(driverArquivo).printecQueries.contarBlocos().executeAsOne())
+            driverArquivo.close()
+        } finally {
+            diretorioTemporario.deleteRecursively()
+        }
     }
 
     @Test

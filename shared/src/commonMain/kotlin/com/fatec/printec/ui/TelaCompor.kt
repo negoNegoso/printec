@@ -26,10 +26,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fatec.printec.dados.LabelStore
+import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.launch
 
 @Composable
-fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: () -> Unit) {
+fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: (LabelDocument, Boolean) -> Unit) {
     var campos by remember { mutableStateOf(CamposDoFormulario()) }
     var nomeParaSalvar by remember { mutableStateOf("") }
     val escopo = rememberCoroutineScope()
@@ -39,8 +40,6 @@ fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: () -> Unit) {
     LaunchedEffect(Unit) {
         store.carregarRascunho()?.let { campos = it.paraCampos() }
     }
-
-    LaunchedEffect(campos) { vm.atualizarDocumento(campos.paraDocumento()) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val largo = maxWidth > 600.dp
@@ -95,7 +94,7 @@ fun TelaCompor(vm: EtiquetaViewModel, store: LabelStore, imprimir: () -> Unit) {
                     estado is EstadoImpressao.Conectando ||
                     estado is EstadoImpressao.Enviando
                 Button(
-                    onClick = imprimir,
+                    onClick = { imprimir(campos.paraDocumento(), true) },
                     enabled = !imprimindo,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(if (imprimindo) "IMPRIMINDO…" else "IMPRIMIR") }

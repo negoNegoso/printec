@@ -52,8 +52,7 @@ class EtiquetaViewModelTest {
     fun `impressao bem sucedida termina em Sucesso`() = runTest {
         val transporte = TransporteFalso()
         val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertIs<EstadoImpressao.Sucesso>(vm.estado.value)
         assertEquals(listOf<Byte>(1, 2, 3), transporte.bytesRecebidos?.toList())
     }
@@ -62,8 +61,7 @@ class EtiquetaViewModelTest {
     fun `uma falha de conexao e superada pelo retry automatico`() = runTest {
         val transporte = TransporteFalso(falhasAntesDeAceitar = 1)
         val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertEquals(2, transporte.tentativas)
         assertIs<EstadoImpressao.Sucesso>(vm.estado.value)
     }
@@ -72,8 +70,7 @@ class EtiquetaViewModelTest {
     fun `duas falhas seguidas viram estado de Falha e param de tentar`() = runTest {
         val transporte = TransporteFalso(falhasAntesDeAceitar = 5)
         val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertEquals(2, transporte.tentativas)
         val estado = vm.estado.value
         assertIs<EstadoImpressao.Falha>(estado)
@@ -86,8 +83,7 @@ class EtiquetaViewModelTest {
         val vm = EtiquetaViewModel(
             StoreFalsa(Configuracoes(impressoraId = null)), transporte, ::renderizadorFalso,
         )
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertEquals(0, transporte.tentativas)
         val estado = vm.estado.value
         assertIs<EstadoImpressao.Falha>(estado)
@@ -101,8 +97,7 @@ class EtiquetaViewModelTest {
             erro = ErroImpressao.PermissaoNegada,
         )
         val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertEquals(1, transporte.tentativas)   // NAO gastou a segunda
         val estado = vm.estado.value
         assertIs<EstadoImpressao.Falha>(estado)
@@ -114,8 +109,7 @@ class EtiquetaViewModelTest {
         val vm = EtiquetaViewModel(StoreFalsa(), TransporteFalso()) { _, _ ->
             throw IllegalStateException("documento invalido")
         }
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         val estado = vm.estado.value
         assertIs<EstadoImpressao.Falha>(estado)
         assertIs<ErroImpressao.FalhaAoPreparar>(estado.erro)
@@ -125,8 +119,7 @@ class EtiquetaViewModelTest {
     fun `imprimir salva o rascunho`() = runTest {
         val store = StoreFalsa()
         val vm = EtiquetaViewModel(store, TransporteFalso(), ::renderizadorFalso)
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertEquals(documento, store.rascunhoSalvo)
     }
 
@@ -134,10 +127,26 @@ class EtiquetaViewModelTest {
     fun `as copias resultam em um envio por copia numa conexao logica`() = runTest {
         val transporte = TransporteFalso()
         val vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
-        vm.atualizarDocumento(documento.copy(copias = 3))
-        vm.imprimir()
+        vm.imprimir(documento.copy(copias = 3), salvarRascunho = true)
         assertEquals(1, transporte.tentativas)
         assertEquals(9, transporte.bytesRecebidos?.size)  // 3 bytes x 3 copias
+    }
+
+    @Test
+    fun `imprimir com salvarRascunho false nao altera o rascunho salvo`() = runTest {
+        // Reimprimir pela lista de salvas ou disparar a etiqueta de teste
+        // imprime um documento que NAO e o que o usuario esta compondo. Se
+        // isso gravasse por cima do rascunho, um toque destruiria o que a
+        // pessoa digitou na tela Compor.
+        val store = StoreFalsa()
+        store.salvarRascunho(documento)   // simula um rascunho ja existente
+        val outraEtiqueta = LabelDocument(listOf(Bloco.Titulo("Bancada B")))
+
+        val vm = EtiquetaViewModel(store, TransporteFalso(), ::renderizadorFalso)
+        vm.imprimir(outraEtiqueta, salvarRascunho = false)
+
+        assertIs<EstadoImpressao.Sucesso>(vm.estado.value)
+        assertEquals(documento, store.rascunhoSalvo)   // continua o rascunho original
     }
 
     @Test
@@ -155,12 +164,11 @@ class EtiquetaViewModelTest {
             override suspend fun listarDestinos(): List<PrinterTarget> = emptyList()
             override suspend fun imprimir(destino: PrinterTarget, bytes: ByteArray) {
                 chamadas++
-                if (chamadas == 1) vm.imprimir()
+                if (chamadas == 1) vm.imprimir(documento)
             }
         }
         vm = EtiquetaViewModel(StoreFalsa(), transporte, ::renderizadorFalso)
-        vm.atualizarDocumento(documento)
-        vm.imprimir()
+        vm.imprimir(documento, salvarRascunho = true)
         assertEquals(1, transporte.chamadas)
         assertIs<EstadoImpressao.Sucesso>(vm.estado.value)
     }
