@@ -1945,6 +1945,16 @@ class EtiquetaViewModel(
     }
 
     suspend fun imprimir() {
+        // Guarda de reentrancia. A UI desabilita o botao IMPRIMIR, mas ha mais
+        // de um ponto de entrada — compor, reimprimir pela lista de salvas, e a
+        // etiqueta de teste nas configuracoes — e nem todos tem botao para
+        // desabilitar. Duas impressoes concorrentes gastam papel de verdade.
+        val emAndamento = _estado.value
+        if (emAndamento is EstadoImpressao.Renderizando ||
+            emAndamento is EstadoImpressao.Conectando ||
+            emAndamento is EstadoImpressao.Enviando
+        ) return
+
         val doc = _documento.value
         val config = store.configuracoes().first()
 
