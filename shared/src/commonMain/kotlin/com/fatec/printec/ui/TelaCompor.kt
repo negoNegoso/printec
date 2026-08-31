@@ -14,8 +14,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fatec.printec.dados.LabelStore
+import com.fatec.printec.etiqueta.Alinhamento
 import com.fatec.printec.etiqueta.LabelDocument
 import kotlinx.coroutines.launch
 
@@ -72,19 +78,27 @@ fun TelaCompor(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 campos.linhas.forEachIndexed { i, linha ->
+                    // O seletor troca a linha inteira, nao so o texto: e a
+                    // mesma posicao da lista, entao as duas edicoes precisam
+                    // partir do mesmo `linha` para nao se sobrescreverem.
+                    val trocar = { nova: LinhaDoFormulario ->
+                        campos = campos.copy(
+                            linhas = campos.linhas.toMutableList().also { l -> l[i] = nova },
+                        )
+                    }
                     OutlinedTextField(
-                        value = linha,
-                        onValueChange = {
-                            campos = campos.copy(
-                                linhas = campos.linhas.toMutableList().also { l -> l[i] = it },
-                            )
-                        },
+                        value = linha.texto,
+                        onValueChange = { trocar(linha.copy(texto = it)) },
                         label = { Text("Linha ${i + 1}") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    SeletorDeAlinhamento(
+                        selecionado = linha.alinhamento,
+                        aoEscolher = { trocar(linha.copy(alinhamento = it)) },
+                    )
                 }
                 OutlinedButton(
-                    onClick = { campos = campos.copy(linhas = campos.linhas + "") },
+                    onClick = { campos = campos.copy(linhas = campos.linhas + LinhaDoFormulario()) },
                 ) { Text("+ adicionar linha") }
 
                 OutlinedTextField(
@@ -152,6 +166,39 @@ fun TelaCompor(
                 // sobra ZERO para o formulario, que fica inutilizavel.
                 preview(Modifier.fillMaxWidth().heightIn(max = alturaDisponivel * 0.4f))
                 formulario(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
+ * O rotulo vai abreviado de proposito: sao tres botoes dividindo a largura do
+ * formulario, que num celular estreito e a largura da tela. Por extenso,
+ * "Esquerda" e "Direita" chegam em reticencias justamente no aparelho onde a
+ * etiqueta e composta.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SeletorDeAlinhamento(
+    selecionado: Alinhamento,
+    aoEscolher: (Alinhamento) -> Unit,
+) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        Alinhamento.entries.forEachIndexed { indice, alinhamento ->
+            SegmentedButton(
+                selected = alinhamento == selecionado,
+                onClick = { aoEscolher(alinhamento) },
+                shape = SegmentedButtonDefaults.itemShape(indice, Alinhamento.entries.size),
+            ) {
+                Text(
+                    text = when (alinhamento) {
+                        Alinhamento.ESQUERDA -> "Esq."
+                        Alinhamento.CENTRO -> "Centro"
+                        Alinhamento.DIREITA -> "Dir."
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                )
             }
         }
     }
