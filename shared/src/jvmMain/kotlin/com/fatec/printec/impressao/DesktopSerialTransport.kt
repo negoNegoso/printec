@@ -2,6 +2,7 @@ package com.fatec.printec.impressao
 
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -45,8 +46,12 @@ class DesktopSerialTransport : PrinterTransport {
             // impressora esta desligada".
             try {
                 val saida = porta.outputStream
-                saida.write(bytes)
-                saida.flush()
+                // Mesma razao do transporte Android: escrever tudo de uma vez
+                // estoura o buffer da impressora e perde a cauda do documento.
+                EscritaEmBlocos.escrever(bytes, ::delay) { bloco ->
+                    saida.write(bloco)
+                    saida.flush()
+                }
             } catch (e: Exception) {
                 throw ErroImpressao.FalhaAoEscrever(e.message ?: e::class.simpleName.orEmpty())
             } finally {
