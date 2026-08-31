@@ -26,11 +26,17 @@ class EscPosRendererTest {
     }
 
     @Test
-    fun `titulo vira escala dobrada centralizada e negrito`() {
+    fun `titulo vira escala dobrada centralizada e SEM negrito`() {
         val doc = LabelDocument(listOf(Bloco.Titulo("OI")))
         val hex = hex(EscPosRenderer.renderizar(doc, avancoFinalMm = 0))
-        // ESC a 1 (centro), GS ! 0x11 (2x2), ESC E 1 (negrito)
-        assertTrue(hex.contains("1B 61 01 1D 21 11 1B 45 01 4F 49 0A"), "obtido: $hex")
+        // ESC a 1 (centro), GS ! 0x11 (2x2), ESC E 0 -- negrito DESLIGADO.
+        // A LT-8359 faz enfase como duplo impacto deslocado na horizontal. Em
+        // largura 2x o segundo impacto cai dentro do proprio glifo e preenche o
+        // vao entre as colunas de dots: o titulo saia borrado no papel enquanto
+        // uma linha 2x comum, logo abaixo, saia nitida. Foi o que a foto da
+        // etiqueta de calibracao mostrou -- "CALIBRACAO" ilegivel, "escala 2x"
+        // perfeito, mesma escala, so o negrito de diferenca.
+        assertTrue(hex.contains("1B 61 01 1D 21 11 1B 45 00 4F 49 0A"), "obtido: $hex")
     }
 
     @Test
