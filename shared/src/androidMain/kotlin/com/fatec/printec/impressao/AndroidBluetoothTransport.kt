@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -58,8 +59,12 @@ class AndroidBluetoothTransport(private val context: Context) : PrinterTransport
 
             try {
                 socket.outputStream.use { saida ->
-                    saida.write(bytes)
-                    saida.flush()
+                    // Nao basta um write() unico: a impressora nao faz controle
+                    // de fluxo e descarta o que nao couber no buffer dela.
+                    EscritaEmBlocos.escrever(bytes, ::delay) { bloco ->
+                        saida.write(bloco)
+                        saida.flush()
+                    }
                 }
             } catch (e: Exception) {
                 throw ErroImpressao.FalhaAoEscrever(e.message.orEmpty())
